@@ -10,9 +10,9 @@ import {
 export type PlayerData = { playerId: string; room?: Room };
 export type PlayerSocket = ServerWebSocket<PlayerData>;
 
-const MIN_DELAY_MS = 1500;
-const MAX_DELAY_MS = 4000;
-const PRESENTATION_DELAY_MS = 5000; // how long the character banners stay up
+const MIN_DELAY_MS = 3000;
+const MAX_DELAY_MS = 30000; // matches half samurai-kirby.wav duration (1m08s)
+const PRESENTATION_DELAY_MS = 1600; // how long the character banners stay up
 
 export class Room {
   private players: PlayerSocket[] = [];
