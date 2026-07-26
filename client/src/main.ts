@@ -10,52 +10,61 @@ const renderer = new Renderer(canvas, bgUrl, banner1Url, banner2Url);
 
 let canAct = false;
 
+// Wait for every asset to be loaded before even opening the connection.
+// Otherwise a player who joins an already-waiting room gets matched almost
+// instantly, and the presentation banners can arrive before their images
+// are ready — silently skipping the banner draw.
 renderer.bgReady
-  .then(() => renderer.draw("connecting", "Connexion..."))
+  .then(() => {
+    renderer.draw("connecting", "Connexion...");
+    connectToServer();
+  })
   .catch((err) => console.error(err));
 
-const conn = new GameConnection("ws://localhost:3001", (event) => {
-  switch (event.type) {
-    case "matched":
-      status.textContent = "Adversaire trouve !";
-      renderer.draw("presentation", "");
-      break;
-    case "wait":
-      canAct = true;
-      status.textContent = "Attends le signal...";
-      renderer.draw("wait", "Matte...");
-      break;
-    case "signal":
-      status.textContent = "MAINTENANT !";
-      renderer.draw("signal", "SHOOT!");
-      break;
-    case "foul":
-      canAct = false;
-      status.textContent = "Faute ! Trop tot, la manche recommence.";
-      renderer.draw("foul", "FAUTE !");
-      break;
-    case "result": {
-      canAct = false;
-      const label =
-        event.winner === 0
-          ? `Gagne ! (${event.yourReactionMs.toFixed(0)} ms)`
-          : event.winner === 1
-            ? `Perdu... (adversaire: ${event.opponentReactionMs.toFixed(0)} ms)`
-            : "Egalite !";
-      status.textContent = label;
-      renderer.draw("result", label);
-      break;
+function connectToServer() {
+  const conn = new GameConnection("ws://localhost:3001", (event) => {
+    switch (event.type) {
+      case "matched":
+        status.textContent = "Adversaire trouve !";
+        renderer.draw("presentation", "");
+        break;
+      case "wait":
+        canAct = true;
+        status.textContent = "Attends le signal...";
+        renderer.draw("wait", "Matte...");
+        break;
+      case "signal":
+        status.textContent = "MAINTENANT !";
+        renderer.draw("signal", "SHOOT!");
+        break;
+      case "foul":
+        canAct = false;
+        status.textContent = "Faute ! Trop tot, la manche recommence.";
+        renderer.draw("foul", "FAUTE !");
+        break;
+      case "result": {
+        canAct = false;
+        const label =
+          event.winner === 0
+            ? `Gagne ! (${event.yourReactionMs.toFixed(0)} ms)`
+            : event.winner === 1
+              ? `Perdu... (adversaire: ${event.opponentReactionMs.toFixed(0)} ms)`
+              : "Egalite !";
+        status.textContent = label;
+        renderer.draw("result", label);
+        break;
+      }
     }
+  });
+
+  function act() {
+    if (!canAct) return;
+    canAct = false;
+    conn.sendAction();
   }
-});
 
-function act() {
-  if (!canAct) return;
-  canAct = false;
-  conn.sendAction();
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "Space") act();
+  });
+  canvas.addEventListener("click", act);
 }
-
-window.addEventListener("keydown", (e) => {
-  if (e.code === "Space") act();
-});
-canvas.addEventListener("click", act);
