@@ -1,0 +1,8 @@
+{
+  "name": "samurai-kirby-client",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --hot index.html"
+  }
+}

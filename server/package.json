@@ -1,0 +1,11 @@
+{
+  "name": "samurai-kirby-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts"
+  },
+  "devDependencies": {
+    "bun-types": "latest"
+  }
+}
