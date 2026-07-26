@@ -4,13 +4,14 @@ import {
   encodeSignal,
   encodeResult,
   encodeSimple,
+  encodeMatched,
   decodeAction,
 } from "./protocol";
 
 export type PlayerData = { playerId: string; room?: Room };
 export type PlayerSocket = ServerWebSocket<PlayerData>;
 
-const MIN_DELAY_MS = 3000;
+const MIN_DELAY_MS = 5000;
 const MAX_DELAY_MS = 30000; // matches half samurai-kirby.wav duration (1m08s)
 const PRESENTATION_DELAY_MS = 1600; // how long the character banners stay up
 
@@ -37,9 +38,9 @@ export class Room {
   }
 
   private presentPlayers() {
-    for (const p of this.players) {
-      p.send(encodeSimple(MsgType.S2C_MATCHED));
-    }
+    this.players.forEach((p, index) => {
+      p.send(encodeMatched(index === 0 ? 0 : 1));
+    });
     this.roundTimer = setTimeout(() => this.startRound(), PRESENTATION_DELAY_MS);
   }
 

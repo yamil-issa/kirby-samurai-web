@@ -1,7 +1,4 @@
-// Mirrors server/src/protocol.ts. Kept as a separate copy for now to avoid
-// cross-project TS resolution headaches — keep both files in sync manually
-// until we introduce a shared package.
-
+// Mirrors server/src/protocol.ts
 export const MsgType = {
   C2S_JOIN: 0x01,
   S2C_MATCHED: 0x02,
@@ -26,6 +23,10 @@ export function encodeAction(clientTimestamp: number): ArrayBuffer {
 
 export function decodeSignal(data: ArrayBuffer): number {
   return new DataView(data).getFloat64(1);
+}
+
+export function decodeMatched(data: ArrayBuffer): 0 | 1 {
+  return new DataView(data).getUint8(1) as 0 | 1;
 }
 
 export function decodeResult(data: ArrayBuffer) {

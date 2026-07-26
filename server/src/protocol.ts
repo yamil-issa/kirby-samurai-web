@@ -22,6 +22,26 @@ export function encodeSimple(type: number): ArrayBuffer {
   return buf;
 }
 
+// role: 0 = character1 (first connected, drawn on the left)
+//       1 = character2 (second connected, drawn on the right)
+export function encodeMatched(role: number): ArrayBuffer {
+  const buf = new ArrayBuffer(2);
+  const view = new DataView(buf);
+  view.setUint8(0, MsgType.S2C_MATCHED);
+  view.setUint8(1, role);
+  return buf;
+}
+
+// Tells a client which side it is: 0 = character1 (left), 1 = character2 (right).
+// Needed so each client's local "win"/"lose" result maps to the correct
+export function encodeMatched(slot: 0 | 1): ArrayBuffer {
+  const buf = new ArrayBuffer(2);
+  const view = new DataView(buf);
+  view.setUint8(0, MsgType.S2C_MATCHED);
+  view.setUint8(1, slot);
+  return buf;
+}
+
 export function encodeSignal(serverTimestamp: number): ArrayBuffer {
   const buf = new ArrayBuffer(9);
   const view = new DataView(buf);
@@ -40,15 +60,10 @@ export function encodeResult(payload: ResultPayload): ArrayBuffer {
   return buf;
 }
 
-// Bun delivers incoming WebSocket messages as Buffer (a Uint8Array view),
-// not a raw ArrayBuffer — build the DataView from its actual byteOffset so
-// this stays correct even if the Buffer is a slice of a larger pool buffer.
 export function readType(data: Uint8Array): number {
   return new DataView(data.buffer, data.byteOffset, data.byteLength).getUint8(0);
 }
 
-// Client timestamp is informational only — never trusted for the actual
-// ordering/verdict. The server's own receipt time is authoritative.
 export function decodeAction(data: Uint8Array): number {
   return new DataView(data.buffer, data.byteOffset, data.byteLength).getFloat64(1);
 }

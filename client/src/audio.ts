@@ -1,8 +1,3 @@
-// Wraps the two sound effects. Browsers block audio.play() until the page
-// has received at least one user gesture (click/keydown) — main.ts makes
-// sure a "start" gesture happens before the first connection, which unlocks
-// audio for the whole session so these calls succeed afterwards.
-
 export class AudioManager {
   private music: HTMLAudioElement;
   private thud: HTMLAudioElement;

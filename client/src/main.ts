@@ -1,26 +1,35 @@
 import { GameConnection } from "./network";
-import { Renderer } from "./renderer";
+import { Renderer, type DuelOutcome } from "./renderer";
 import { AudioManager } from "./audio";
 import bgUrl from "./assets/background/game-bg.png";
 import banner1Url from "./assets/background/character1-pres.png";
 import banner2Url from "./assets/background/character2-pres.png";
-import char1Url from "./assets/characters/character1-idle.png";
-import char2Url from "./assets/characters/character2-idle.png";
+import char1IdleUrl from "./assets/characters/character1-idle.png";
+import char2IdleUrl from "./assets/characters/character2-idle.png";
+import char1WinUrl from "./assets/characters/character1-win.png";
+import char1LooseUrl from "./assets/characters/character1-lose.png";
+import char2WinUrl from "./assets/characters/character2-win.png";
+import char2LooseUrl from "./assets/characters/character2-lose.png";
 import shootIconUrl from "./assets/effects/shoot.png";
 import musicUrl from "./assets/sounds/samurai-kirby.wav";
 import thudUrl from "./assets/sounds/thud.wav";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const status = document.getElementById("status")!;
-const renderer = new Renderer(canvas, bgUrl, banner1Url, banner2Url, char1Url, char2Url, shootIconUrl);
+const renderer = new Renderer(canvas, {
+  background: bgUrl,
+  bannerTop: banner1Url,
+  bannerBottom: banner2Url,
+  characterLeft: { idle: char1IdleUrl, win: char1WinUrl, loose: char1LooseUrl },
+  characterRight: { idle: char2IdleUrl, win: char2WinUrl, loose: char2LooseUrl },
+  shootIcon: shootIconUrl,
+});
 const audio = new AudioManager(musicUrl, thudUrl);
 
 let canAct = false;
+let mySlot: 0 | 1 = 0; // 0 = character1 (left), 1 = character2 (right)
 
-// Wait for every asset to be loaded before doing anything else. Otherwise a
-// player who joins an already-waiting room gets matched almost instantly,
-// and the presentation banners can arrive before their images are ready —
-// silently skipping the banner draw.
+// Wait for every asset to be loaded before doing anything else.
 renderer.bgReady
   .then(() => {
     renderer.draw("connecting", "Clique ou appuie sur Espace pour commencer");
@@ -29,8 +38,6 @@ renderer.bgReady
   .catch((err) => console.error(err));
 
 // Browsers block audio.play() until the page has received a real user
-// gesture. This screen doubles as that gesture (needed before the music can
-// autoplay the instant the match starts) and as a normal "ready?" prompt.
 function waitForStartGesture() {
   const start = () => {
     window.removeEventListener("keydown", start);
@@ -46,6 +53,7 @@ function connectToServer() {
   const conn = new GameConnection("ws://localhost:3001", (event) => {
     switch (event.type) {
       case "matched":
+        mySlot = event.slot;
         status.textContent = "Adversaire trouve !";
         renderer.draw("presentation", "");
         break;
@@ -76,7 +84,18 @@ function connectToServer() {
               ? `Perdu... (adversaire: ${event.opponentReactionMs.toFixed(0)} ms)`
               : "Egalite !";
         status.textContent = label;
-        renderer.draw("result", label);
+
+        // Determine the outcome from the perspective of this client.
+        let outcome: DuelOutcome;
+        if (event.winner === 2) {
+          outcome = "draw";
+        } else {
+          const iWon = event.winner === 0;
+          const iAmCharacter1 = mySlot === 0;
+          outcome = iWon === iAmCharacter1 ? "character1" : "character2";
+        }
+
+        renderer.draw("result", label, outcome);
         break;
       }
     }
@@ -85,7 +104,7 @@ function connectToServer() {
   function act() {
     if (!canAct) return;
     canAct = false;
-    renderer.draw("acted", ""); // instant feedback: hide the icon right away, don't wait for the server
+    renderer.draw("acted", "");
     conn.sendAction();
   }
 

@@ -1,7 +1,3 @@
-// Loads a PNG and strips a flat background color (chroma-key), returning a
-// canvas that can be passed straight to ctx.drawImage. Used for assets that
-// have an opaque solid-color background instead of real alpha transparency.
-
 export function loadChromaKeyedImage(
   src: string,
   key: [number, number, number],

@@ -1,7 +1,7 @@
-import { MsgType, readType, encodeAction, decodeResult } from "./protocol";
+import { MsgType, readType, encodeAction, decodeResult, decodeMatched } from "./protocol";
 
 export type GameEvent =
-  | { type: "matched" }
+  | { type: "matched"; slot: 0 | 1 }
   | { type: "wait" }
   | { type: "signal" }
   | { type: "foul" }
@@ -20,7 +20,7 @@ export class GameConnection {
     const type = readType(data);
     switch (type) {
       case MsgType.S2C_MATCHED:
-        this.onEvent({ type: "matched" });
+        this.onEvent({ type: "matched", slot: decodeMatched(data) });
         break;
       case MsgType.S2C_ROUND_WAIT:
         this.onEvent({ type: "wait" });
