@@ -1,4 +1,4 @@
-# Samurai Kirby — local MVP
+# Samurai Kirby
 
 Online reaction duel (in the style of the "Samurai Kirby" minigame from Smash Bros), meant to eventually run as a Discord Activity. This stage focuses purely on getting it running locally, without the Discord SDK.
 
@@ -93,11 +93,9 @@ From a Discord voice channel (a test server), launch your Activity. The SDK hand
 - Not tested with a real Client ID/Secret or a real cloudflared tunnel (done in an environment without access to discord.com): the server-side logic (served page, assets, WebSocket upgrade) is verified end-to-end, but the actual OAuth exchange with Discord still needs to be validated on your end.
 - CSP: if the browser blocks a request once inside Discord, it'll show up in the console with an explicit message; we'll adjust case by case.
 
-## Still missing (intentionally, for later)
+## Still missing
 
 - Real multi-room matchmaking / queue (currently: a single global room, MVP)
 - Ping measurement and latency compensation (currently: raw server-side arrival order)
 - Replay without a page reload on the client if both sockets stay open after a result (to add)
-- Discord Embedded App SDK + Hetzner deployment
-
-We'll tackle these once the duel runs correctly locally.
+- Discord Embedded App SDK
