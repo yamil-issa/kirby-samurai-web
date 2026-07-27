@@ -8,6 +8,8 @@ export const MsgType = {
   C2S_ACTION: 0x05, // player pressed/clicked
   S2C_RESULT: 0x06,
   S2C_FOUL: 0x07, // pressed before the signal
+  C2S_SET_NAME: 0x08, // client -> server: my display name (Discord username, or fallback)
+  S2C_NAMES: 0x09, // server -> both clients: current character1/character2 names
 } as const;
 
 export type ResultPayload = {
@@ -22,18 +24,6 @@ export function encodeSimple(type: number): ArrayBuffer {
   return buf;
 }
 
-// role: 0 = character1 (first connected, drawn on the left)
-//       1 = character2 (second connected, drawn on the right)
-export function encodeMatched(role: number): ArrayBuffer {
-  const buf = new ArrayBuffer(2);
-  const view = new DataView(buf);
-  view.setUint8(0, MsgType.S2C_MATCHED);
-  view.setUint8(1, role);
-  return buf;
-}
-
-// Tells a client which side it is: 0 = character1 (left), 1 = character2 (right).
-// Needed so each client's local "win"/"lose" result maps to the correct
 export function encodeMatched(slot: 0 | 1): ArrayBuffer {
   const buf = new ArrayBuffer(2);
   const view = new DataView(buf);
@@ -58,6 +48,26 @@ export function encodeResult(payload: ResultPayload): ArrayBuffer {
   view.setFloat32(2, payload.yourReactionMs);
   view.setFloat32(6, payload.opponentReactionMs);
   return buf;
+}
+
+export function encodeNames(name1: string, name2: string): ArrayBuffer {
+  const u1 = new TextEncoder().encode(name1.slice(0, 64));
+  const u2 = new TextEncoder().encode(name2.slice(0, 64));
+  const buf = new ArrayBuffer(1 + 1 + u1.length + 1 + u2.length);
+  const view = new DataView(buf);
+  let offset = 0;
+  view.setUint8(offset++, MsgType.S2C_NAMES);
+  view.setUint8(offset++, u1.length);
+  new Uint8Array(buf, offset, u1.length).set(u1);
+  offset += u1.length;
+  view.setUint8(offset++, u2.length);
+  new Uint8Array(buf, offset, u2.length).set(u2);
+  return buf;
+}
+
+export function decodeSetName(data: Uint8Array): string {
+  const len = data[1];
+  return new TextDecoder().decode(data.slice(2, 2 + len));
 }
 
 export function readType(data: Uint8Array): number {

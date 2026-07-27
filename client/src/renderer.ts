@@ -16,8 +16,6 @@ const TINT: Record<SceneState, string | null> = {
 
 const SHOOT_ICON_SCALE = 4;
 const SHOOT_ICON_Y_FRAC = 0.55;
-
-// Where the two characters stand as a fraction of canvas size
 const CHAR_SCALE = 3;
 const CHAR_LEFT_X_FRAC = 0.28;
 const CHAR_RIGHT_X_FRAC = 0.68;
@@ -26,9 +24,9 @@ const CHAR_GROUND_Y_FRAC = 0.8;
 type Sprite = HTMLCanvasElement | HTMLImageElement;
 
 export type CharacterAssets = {
-  idle: string;
-  win?: string;
-  loose?: string;
+  idle: string; // opaque white background, gets chroma-keyed
+  win?: string; // already has real alpha transparency
+  loose?: string; // already has real alpha transparency
 };
 
 export type RendererAssets = {
@@ -61,6 +59,8 @@ export class Renderer {
   private rightWin: HTMLImageElement | null = null;
   private rightLoose: HTMLImageElement | null = null;
   private shootIcon: HTMLImageElement | null = null;
+  private leftName = "";
+  private rightName = "";
   bgReady: Promise<void>;
 
   constructor(private canvas: HTMLCanvasElement, assets: RendererAssets) {
@@ -102,6 +102,8 @@ export class Renderer {
     this.bgReady = Promise.all(loads).then(() => undefined);
   }
 
+  // Scales the background to fill the whole canvas without distorting it,
+  // cropping whatever overflows — same idea as CSS `background-size: cover`.
   private drawBackgroundCover() {
     if (!this.bg) return;
     const { ctx, canvas, bg } = this;
@@ -113,6 +115,8 @@ export class Renderer {
     ctx.drawImage(bg, dx, dy, drawW, drawH);
   }
 
+  // Stretches a banner to the full canvas width, pinned to the top or bottom
+  // edge, preserving its aspect ratio (so it stays a thin horizontal strip).
   private drawBanner(img: HTMLImageElement, edge: "top" | "bottom") {
     const { ctx, canvas } = this;
     const scale = canvas.width / img.width;
@@ -121,16 +125,33 @@ export class Renderer {
     ctx.drawImage(img, 0, dy, canvas.width, drawH);
   }
 
-  private drawCharacter(sprite: Sprite, xFrac: number) {
+  private drawCharacter(sprite: Sprite, xFrac: number, name: string) {
     const { ctx, canvas } = this;
     const drawW = sprite.width * CHAR_SCALE;
     const drawH = sprite.height * CHAR_SCALE;
     const cx = canvas.width * xFrac;
     const groundY = canvas.height * CHAR_GROUND_Y_FRAC;
-    ctx.drawImage(sprite, cx - drawW / 2, groundY - drawH, drawW, drawH);
+    const topY = groundY - drawH;
+    ctx.drawImage(sprite, cx - drawW / 2, topY, drawW, drawH);
+
+    if (name) {
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 15px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.shadowColor = "rgba(0,0,0,0.9)";
+      ctx.shadowBlur = 4;
+      ctx.fillText(name, cx, topY - 6);
+      ctx.shadowBlur = 0;
+    }
   }
 
-  // Picks idle vs win vs loose for one side based on the round outcome.
+  setNames(left: string, right: string) {
+    this.leftName = left;
+    this.rightName = right;
+  }
+
+  // Picks idle vs win vs loose for one side, based on the round outcome.
   private pickSprite(side: "left" | "right", state: SceneState, outcome: DuelOutcome): Sprite | null {
     const idle = side === "left" ? this.leftIdle : this.rightIdle;
     if (state !== "result" || !outcome || outcome === "draw") return idle;
@@ -157,15 +178,15 @@ export class Renderer {
     if (this.bg) {
       this.drawBackgroundCover();
     } else {
-      ctx.fillStyle = "#111318";
+      ctx.fillStyle = "#111318"; // fallback while the image is still loading
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
     if (state !== "connecting") {
       const leftSprite = this.pickSprite("left", state, outcome);
       const rightSprite = this.pickSprite("right", state, outcome);
-      if (leftSprite) this.drawCharacter(leftSprite, CHAR_LEFT_X_FRAC);
-      if (rightSprite) this.drawCharacter(rightSprite, CHAR_RIGHT_X_FRAC);
+      if (leftSprite) this.drawCharacter(leftSprite, CHAR_LEFT_X_FRAC, this.leftName);
+      if (rightSprite) this.drawCharacter(rightSprite, CHAR_RIGHT_X_FRAC, this.rightName);
     }
 
     const tint = TINT[state];
@@ -181,7 +202,7 @@ export class Renderer {
 
     if (state === "signal") {
       this.drawShootIcon();
-      return;
+      return; // no text under the icon
     }
 
     ctx.fillStyle = "#fff";

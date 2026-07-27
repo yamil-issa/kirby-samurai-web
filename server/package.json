@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run --watch src/index.ts"
+    "dev": "bun run --watch src/index.ts",
+    "discord": "bun run --watch src/discord-serve.ts"
   },
   "devDependencies": {
     "bun-types": "latest"

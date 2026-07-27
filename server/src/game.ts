@@ -5,21 +5,25 @@ import {
   encodeResult,
   encodeSimple,
   encodeMatched,
+  encodeNames,
   decodeAction,
+  decodeSetName,
 } from "./protocol";
 
 export type PlayerData = { playerId: string; room?: Room };
 export type PlayerSocket = ServerWebSocket<PlayerData>;
 
 const MIN_DELAY_MS = 5000;
-const MAX_DELAY_MS = 30000; // matches half samurai-kirby.wav duration (1m08s)
+const MAX_DELAY_MS = 68000; // matches samurai-kirby.wav duration (1m08s)
 const PRESENTATION_DELAY_MS = 1600; // how long the character banners stay up
+const DEFAULT_NAMES: [string, string] = ["Joueur 1", "Joueur 2"];
 
 export class Room {
   private players: PlayerSocket[] = [];
   private signalSentAt: number | null = null;
   private actions: Map<PlayerSocket, number> = new Map();
   private roundTimer: ReturnType<typeof setTimeout> | null = null;
+  private names: [string, string] = [...DEFAULT_NAMES];
 
   isFull() {
     return this.players.length >= 2;
@@ -37,10 +41,24 @@ export class Room {
     if (this.roundTimer) clearTimeout(this.roundTimer);
   }
 
+  setName(ws: PlayerSocket, data: Uint8Array) {
+    const index = this.players.indexOf(ws);
+    if (index === -1) return;
+    const name = decodeSetName(data).trim();
+    if (!name) return;
+    this.names[index] = name;
+    const frame = encodeNames(this.names[0], this.names[1]);
+    for (const p of this.players) p.send(frame);
+  }
+
   private presentPlayers() {
     this.players.forEach((p, index) => {
       p.send(encodeMatched(index === 0 ? 0 : 1));
     });
+    // Send whatever names we already have (defaults, most likely) right
+    // away — a client that set its name will trigger a fresh broadcast.
+    const namesFrame = encodeNames(this.names[0], this.names[1]);
+    for (const p of this.players) p.send(namesFrame);
     this.roundTimer = setTimeout(() => this.startRound(), PRESENTATION_DELAY_MS);
   }
 

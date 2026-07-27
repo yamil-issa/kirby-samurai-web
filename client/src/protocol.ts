@@ -1,4 +1,4 @@
-// Mirrors server/src/protocol.ts
+// Mirrors server/src/protocol.ts.
 export const MsgType = {
   C2S_JOIN: 0x01,
   S2C_MATCHED: 0x02,
@@ -7,6 +7,8 @@ export const MsgType = {
   C2S_ACTION: 0x05,
   S2C_RESULT: 0x06,
   S2C_FOUL: 0x07,
+  C2S_SET_NAME: 0x08,
+  S2C_NAMES: 0x09,
 } as const;
 
 export function readType(data: ArrayBuffer): number {
@@ -36,4 +38,27 @@ export function decodeResult(data: ArrayBuffer) {
     yourReactionMs: view.getFloat32(2),
     opponentReactionMs: view.getFloat32(6),
   };
+}
+
+export function encodeSetName(name: string): ArrayBuffer {
+  const utf8 = new TextEncoder().encode(name.slice(0, 64));
+  const buf = new ArrayBuffer(2 + utf8.length);
+  const view = new DataView(buf);
+  view.setUint8(0, MsgType.C2S_SET_NAME);
+  view.setUint8(1, utf8.length);
+  new Uint8Array(buf, 2).set(utf8);
+  return buf;
+}
+
+export function decodeNames(data: ArrayBuffer): [string, string] {
+  const bytes = new Uint8Array(data);
+  let offset = 1;
+  const len1 = bytes[offset];
+  offset += 1;
+  const name1 = new TextDecoder().decode(bytes.slice(offset, offset + len1));
+  offset += len1;
+  const len2 = bytes[offset];
+  offset += 1;
+  const name2 = new TextDecoder().decode(bytes.slice(offset, offset + len2));
+  return [name1, name2];
 }

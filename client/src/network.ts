@@ -1,11 +1,12 @@
-import { MsgType, readType, encodeAction, decodeResult, decodeMatched } from "./protocol";
+import { MsgType, readType, encodeAction, encodeSetName, decodeResult, decodeMatched, decodeNames } from "./protocol";
 
 export type GameEvent =
   | { type: "matched"; slot: 0 | 1 }
   | { type: "wait" }
   | { type: "signal" }
   | { type: "foul" }
-  | { type: "result"; winner: 0 | 1 | 2; yourReactionMs: number; opponentReactionMs: number };
+  | { type: "result"; winner: 0 | 1 | 2; yourReactionMs: number; opponentReactionMs: number }
+  | { type: "names"; character1: string; character2: string };
 
 export class GameConnection {
   private ws: WebSocket;
@@ -36,10 +37,19 @@ export class GameConnection {
         this.onEvent({ type: "result", ...r });
         break;
       }
+      case MsgType.S2C_NAMES: {
+        const [character1, character2] = decodeNames(data);
+        this.onEvent({ type: "names", character1, character2 });
+        break;
+      }
     }
   }
 
   sendAction() {
     this.ws.send(encodeAction(performance.now()));
+  }
+
+  sendName(name: string) {
+    this.ws.send(encodeSetName(name));
   }
 }

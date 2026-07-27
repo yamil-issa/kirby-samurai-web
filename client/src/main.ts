@@ -1,6 +1,7 @@
 import { GameConnection } from "./network";
-import { Renderer, type DuelOutcome } from "./renderer";
+import { Renderer, type DuelOutcome, type SceneState } from "./renderer";
 import { AudioManager } from "./audio";
+import { setupDiscordSdk, isRunningInsideDiscord, getWebSocketUrl } from "./discord";
 import bgUrl from "./assets/background/game-bg.png";
 import banner1Url from "./assets/background/character1-pres.png";
 import banner2Url from "./assets/background/character2-pres.png";
@@ -13,6 +14,9 @@ import char2LooseUrl from "./assets/characters/character2-lose.png";
 import shootIconUrl from "./assets/effects/shoot.png";
 import musicUrl from "./assets/sounds/samurai-kirby.wav";
 import thudUrl from "./assets/sounds/thud.wav";
+
+
+const DISCORD_CLIENT_ID = process.env.PUBLIC_DISCORD_CLIENT_ID ?? "";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const status = document.getElementById("status")!;
@@ -28,21 +32,45 @@ const audio = new AudioManager(musicUrl, thudUrl);
 
 let canAct = false;
 let mySlot: 0 | 1 = 0; // 0 = character1 (left), 1 = character2 (right)
+let myDisplayName = "Joueur";
 
-// Wait for every asset to be loaded before doing anything else.
+let currentState: SceneState = "connecting";
+let currentMessage = "";
+let currentOutcome: DuelOutcome = null;
+function render(state: SceneState, message: string, outcome: DuelOutcome = null) {
+  currentState = state;
+  currentMessage = message;
+  currentOutcome = outcome;
+  renderer.draw(state, message, outcome);
+}
+
 renderer.bgReady
   .then(() => {
-    renderer.draw("connecting", "Clique ou appuie sur Espace pour commencer");
+    render("connecting", "Clique ou appuie sur Espace pour commencer");
     waitForStartGesture();
   })
   .catch((err) => console.error(err));
 
-// Browsers block audio.play() until the page has received a real user
 function waitForStartGesture() {
-  const start = () => {
+  const start = async () => {
     window.removeEventListener("keydown", start);
     canvas.removeEventListener("click", start);
-    renderer.draw("connecting", "Connexion...");
+
+    if (isRunningInsideDiscord()) {
+      render("connecting", "Connexion a Discord...");
+      try {
+        const { displayName } = await setupDiscordSdk(DISCORD_CLIENT_ID);
+        myDisplayName = displayName;
+      } catch (err) {
+        console.error("Discord SDK setup failed:", err);
+        render("connecting", "Erreur de connexion a Discord (voir la console)");
+        return;
+      }
+    } else {
+      myDisplayName = `Joueur ${Math.floor(Math.random() * 1000)}`;
+    }
+
+    render("connecting", "Connexion...");
     connectToServer();
   };
   window.addEventListener("keydown", start, { once: true });
@@ -50,29 +78,34 @@ function waitForStartGesture() {
 }
 
 function connectToServer() {
-  const conn = new GameConnection("ws://localhost:3001", (event) => {
+  const conn = new GameConnection(getWebSocketUrl(), (event) => {
     switch (event.type) {
       case "matched":
         mySlot = event.slot;
         status.textContent = "Adversaire trouve !";
-        renderer.draw("presentation", "");
+        render("presentation", "");
+        conn.sendName(myDisplayName);
+        break;
+      case "names":
+        renderer.setNames(event.character1, event.character2);
+        render(currentState, currentMessage, currentOutcome); // refresh with the new labels
         break;
       case "wait":
         canAct = true;
         status.textContent = "Attends le signal...";
-        renderer.draw("wait", "Matte...");
+        render("wait", "Matte...");
         audio.playMusic();
         break;
       case "signal":
         status.textContent = "MAINTENANT !";
-        renderer.draw("signal", "SHOOT!");
+        render("signal", "SHOOT!");
         audio.stopMusic();
         audio.playThud();
         break;
       case "foul":
         canAct = false;
         status.textContent = "Faute ! Trop tot, la manche recommence.";
-        renderer.draw("foul", "FAUTE !");
+        render("foul", "FAUTE !");
         audio.stopMusic();
         break;
       case "result": {
@@ -85,7 +118,6 @@ function connectToServer() {
               : "Egalite !";
         status.textContent = label;
 
-        // Determine the outcome from the perspective of this client.
         let outcome: DuelOutcome;
         if (event.winner === 2) {
           outcome = "draw";
@@ -95,7 +127,7 @@ function connectToServer() {
           outcome = iWon === iAmCharacter1 ? "character1" : "character2";
         }
 
-        renderer.draw("result", label, outcome);
+        render("result", label, outcome);
         break;
       }
     }
@@ -104,7 +136,7 @@ function connectToServer() {
   function act() {
     if (!canAct) return;
     canAct = false;
-    renderer.draw("acted", "");
+    render("acted", "");
     conn.sendAction();
   }
 
