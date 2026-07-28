@@ -1,4 +1,4 @@
-// Single-process entry point for running inside Discord. Discord's proxy
+// Single-process entry point for running inside Discord
 
 import { Room, type PlayerData, type PlayerSocket } from "./game";
 import { MsgType, readType } from "./protocol";
@@ -7,6 +7,7 @@ const PORT = Number(Bun.env.PORT ?? 3001);
 const CLIENT_ID = Bun.env.DISCORD_CLIENT_ID;
 const CLIENT_SECRET = Bun.env.DISCORD_CLIENT_SECRET;
 const CLIENT_DIST = decodeURIComponent(new URL("../../client/dist", import.meta.url).pathname);
+const LEGAL_DIR = decodeURIComponent(new URL("../legal", import.meta.url).pathname);
 
 if (!CLIENT_ID || !CLIENT_SECRET) {
   console.error(
@@ -87,6 +88,13 @@ Bun.serve<PlayerData>({
       });
       if (upgraded) return undefined;
       return new Response("WebSocket upgrade failed", { status: 400 });
+    }
+
+    if (url.pathname === "/terms") {
+      return new Response(Bun.file(`${LEGAL_DIR}/terms.html`));
+    }
+    if (url.pathname === "/privacy") {
+      return new Response(Bun.file(`${LEGAL_DIR}/privacy.html`));
     }
 
     return serveStatic(url.pathname);
