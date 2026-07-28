@@ -1,4 +1,4 @@
-# Samurai Kirby
+# Kirby Samurai 
 
 Online reaction duel (in the style of the "Samurai Kirby" minigame from Kirby Super Star), meant to eventually run as a Discord Activity. This stage focuses purely on getting it running locally, without the Discord SDK.
 
