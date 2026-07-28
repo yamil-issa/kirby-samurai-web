@@ -14,7 +14,7 @@ export type PlayerData = { playerId: string; instanceKey: string; room?: Room };
 export type PlayerSocket = ServerWebSocket<PlayerData>;
 
 const MIN_DELAY_MS = 4000;
-const MAX_DELAY_MS = 29000; // matches samurai-kirby.wav duration (1m08s)
+const MAX_DELAY_MS = 25000; // matches samurai-kirby.wav duration (1m08s)
 const PRESENTATION_DELAY_MS = 1600; // how long the character banners stay up
 const GRACE_PERIOD_MS = 2000; // once one player reacts, how long the other gets before auto-losing
 const DEFAULT_NAMES: [string, string] = ["Joueur 1", "Joueur 2"];
