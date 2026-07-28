@@ -1,7 +1,7 @@
 import { GameConnection } from "./network";
 import { Renderer, type DuelOutcome, type SceneState } from "./renderer";
 import { AudioManager } from "./audio";
-import { setupDiscordSdk, isRunningInsideDiscord, getWebSocketUrl } from "./discord";
+import { setupDiscordSdk, isRunningInsideDiscord, getWebSocketUrl, getOrCreateRoomCode } from "./discord";
 import bgUrl from "./assets/background/game-bg.png";
 import banner1Url from "./assets/background/character1-pres.png";
 import banner2Url from "./assets/background/character2-pres.png";
@@ -54,6 +54,11 @@ function render(state: SceneState, message: string, outcome: DuelOutcome = null)
 
 renderer.bgReady
   .then(() => {
+    if (!isRunningInsideDiscord()) {
+      // Updates the address bar with a shareable room code right away, so
+      // the person can copy the link before even clicking "start".
+      myInstanceId = getOrCreateRoomCode();
+    }
     render("connecting", "Click or press the Space bar to start");
     waitForStartGesture();
   })
@@ -137,7 +142,7 @@ function connectToServer() {
           event.winner === 0
             ? `Win ! (${event.yourReactionMs.toFixed(0)} ms)`
             : event.winner === 1
-              ? `Lose... (opponent: ${event.opponentReactionMs.toFixed(0)} ms)`
+              ? `Lost... (opponent: ${event.opponentReactionMs.toFixed(0)} ms)`
               : "Draw !";
         status.textContent = label;
 
