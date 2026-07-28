@@ -3,7 +3,7 @@
 Online reaction duel (in the style of the "Samurai Kirby" minigame from Kirby Super Star), meant to eventually run as a Discord Activity. This stage focuses purely on getting it running locally, without the Discord SDK.
 
 ## How to play
-The game is live at `kirby-samurai.one`
+The game is live at  **[kirby-samurai.one](https://kirby-samurai.one)**
 
 - In Discord: launch it as an Activity from a voice channel (you'll need to be added as an App Tester first — the app isn't verified yet, see the checklist below).
 - In a browser: just open the link above. Share the exact URL it gives you (it includes a room code) with whoever you want to play against — opening that same link is what matches the two of you together.
