@@ -3,18 +3,28 @@ import { MsgType, readType } from "./protocol";
 
 const PORT = 3001;
 
-let waitingRoom: Room | null = null;
+// One waiting room per Discord Activity instance (or "local" outside
+// Discord), so two unrelated groups launching the Activity at the same time
+// never get matched with each other.
+const waitingRooms = new Map<string, Room>();
 
-function getRoomForNewPlayer(): Room {
-  if (!waitingRoom || waitingRoom.isFull()) {
-    waitingRoom = new Room((room) => {
-      waitingRoom = room; // room dropped to 1 player — make it matchable again
-    });
+function getRoomForNewPlayer(instanceKey: string): Room {
+  let room = waitingRooms.get(instanceKey);
+  if (!room || room.isFull()) {
+    room = new Room(
+      (r) => waitingRooms.set(instanceKey, r), // dropped to 1 player — stays matchable
+      () => waitingRooms.delete(instanceKey) // dropped to 0 players — stop leaking it
+    );
+    waitingRooms.set(instanceKey, room);
   }
-  return waitingRoom;
+  return room;
 }
 
-// Server side half of the Discord Activity OAuth2 flow
+// Server side half of the Discord Activity OAuth2 flow: the client gets a
+// one-time `code` from discordSdk.commands.authorize(), sends it here, and
+// we exchange it for an access_token using the client secret (which must
+// never be exposed to the browser). Configure DISCORD_CLIENT_ID and
+// DISCORD_CLIENT_SECRET in server/.env (Bun loads it automatically).
 async function handleTokenExchange(req: Request): Promise<Response> {
   const { code } = (await req.json()) as { code?: string };
   if (!code) {
@@ -62,15 +72,16 @@ Bun.serve<PlayerData>({
       return handleTokenExchange(req);
     }
 
+    const instanceKey = url.searchParams.get("instance") || "local";
     const upgraded = server.upgrade(req, {
-      data: { playerId: crypto.randomUUID() },
+      data: { playerId: crypto.randomUUID(), instanceKey },
     });
     if (upgraded) return undefined;
     return new Response("Samurai Kirby server is running.", { status: 200 });
   },
   websocket: {
     open(ws: PlayerSocket) {
-      const room = getRoomForNewPlayer();
+      const room = getRoomForNewPlayer(ws.data.instanceKey);
       ws.data.room = room;
       room.addPlayer(ws);
     },

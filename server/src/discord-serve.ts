@@ -1,4 +1,4 @@
-// Single-process entry point for running inside Discord.
+// Single-process entry point for running inside Discord. Discord's proxy
 
 import { Room, type PlayerData, type PlayerSocket } from "./game";
 import { MsgType, readType } from "./protocol";
@@ -15,14 +15,20 @@ if (!CLIENT_ID || !CLIENT_SECRET) {
   process.exit(1);
 }
 
-let waitingRoom: Room | null = null;
-function getRoomForNewPlayer(): Room {
-  if (!waitingRoom || waitingRoom.isFull()) {
-    waitingRoom = new Room((room) => {
-      waitingRoom = room; // room dropped to 1 player — make it matchable again
-    });
+// One waiting room per Discord Activity instance, so two unrelated groups
+// launching the Activity at the same time never get matched with each other.
+const waitingRooms = new Map<string, Room>();
+
+function getRoomForNewPlayer(instanceKey: string): Room {
+  let room = waitingRooms.get(instanceKey);
+  if (!room || room.isFull()) {
+    room = new Room(
+      (r) => waitingRooms.set(instanceKey, r),
+      () => waitingRooms.delete(instanceKey)
+    );
+    waitingRooms.set(instanceKey, room);
   }
-  return waitingRoom;
+  return room;
 }
 
 // Exchanges the Discord OAuth code for an access token. Must happen
@@ -75,7 +81,10 @@ Bun.serve<PlayerData>({
     }
 
     if (url.pathname === "/ws") {
-      const upgraded = server.upgrade(req, { data: { playerId: crypto.randomUUID() } });
+      const instanceKey = url.searchParams.get("instance") || "local";
+      const upgraded = server.upgrade(req, {
+        data: { playerId: crypto.randomUUID(), instanceKey },
+      });
       if (upgraded) return undefined;
       return new Response("WebSocket upgrade failed", { status: 400 });
     }
@@ -84,7 +93,7 @@ Bun.serve<PlayerData>({
   },
   websocket: {
     open(ws: PlayerSocket) {
-      const room = getRoomForNewPlayer();
+      const room = getRoomForNewPlayer(ws.data.instanceKey);
       ws.data.room = room;
       room.addPlayer(ws);
     },

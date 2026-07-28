@@ -38,6 +38,7 @@ const audio = new AudioManager(musicUrl, thudUrl);
 let canAct = false;
 let mySlot: 0 | 1 = 0; // 0 = character1 (left), 1 = character2 (right)
 let myDisplayName = "Joueur";
+let myInstanceId = "local";
 
 // Tracks the last frame so a "names" update can redraw it without changing
 // whatever state/message/outcome was already on screen.
@@ -67,8 +68,9 @@ function waitForStartGesture() {
     if (isRunningInsideDiscord()) {
       render("connecting", "Connecting to Discord...");
       try {
-        const { displayName } = await setupDiscordSdk(DISCORD_CLIENT_ID);
+        const { displayName, instanceId } = await setupDiscordSdk(DISCORD_CLIENT_ID);
         myDisplayName = displayName;
+        myInstanceId = instanceId;
       } catch (err) {
         console.error("Discord SDK setup failed:", err);
         render("connecting", "Discord connection error (see the console)");
@@ -88,7 +90,7 @@ function waitForStartGesture() {
 }
 
 function connectToServer() {
-  const conn = new GameConnection(getWebSocketUrl(), (event) => {
+  const conn = new GameConnection(getWebSocketUrl(myInstanceId), (event) => {
     // Whatever just happened, we're not on the post-game screen anymore —
     // the "result" case below is the only one that re-shows the buttons.
     postGameActions.hidden = true;
@@ -135,7 +137,7 @@ function connectToServer() {
           event.winner === 0
             ? `Win ! (${event.yourReactionMs.toFixed(0)} ms)`
             : event.winner === 1
-              ? `Lost... (opponent: ${event.opponentReactionMs.toFixed(0)} ms)`
+              ? `Lose... (opponent: ${event.opponentReactionMs.toFixed(0)} ms)`
               : "Draw !";
         status.textContent = label;
 

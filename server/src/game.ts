@@ -10,11 +10,11 @@ import {
   decodeSetName,
 } from "./protocol";
 
-export type PlayerData = { playerId: string; room?: Room };
+export type PlayerData = { playerId: string; instanceKey: string; room?: Room };
 export type PlayerSocket = ServerWebSocket<PlayerData>;
 
 const MIN_DELAY_MS = 4000;
-const MAX_DELAY_MS = 29000;
+const MAX_DELAY_MS = 29000; // matches samurai-kirby.wav duration (1m08s)
 const PRESENTATION_DELAY_MS = 1600; // how long the character banners stay up
 const GRACE_PERIOD_MS = 2000; // once one player reacts, how long the other gets before auto-losing
 const DEFAULT_NAMES: [string, string] = ["Joueur 1", "Joueur 2"];
@@ -28,7 +28,10 @@ export class Room {
   private names: [string, string] = [...DEFAULT_NAMES];
   private readyForRematch: Set<PlayerSocket> = new Set();
 
-  constructor(private onAvailable?: (room: Room) => void) {}
+  constructor(
+    private onAvailable?: (room: Room) => void,
+    private onEmpty?: (room: Room) => void
+  ) {}
 
   isFull() {
     return this.players.length >= 2;
@@ -51,9 +54,14 @@ export class Room {
     if (wasFull && this.players.length === 1) {
       this.players[0].send(encodeSimple(MsgType.S2C_OPPONENT_LEFT));
       this.onAvailable?.(this);
+    } else if (this.players.length === 0) {
+      this.onEmpty?.(this);
     }
   }
 
+  // Called when a client clicks "Rejouer". Once both remaining players have
+  // done so, jump straight back to the Matte/Shoot loop — no need to redo
+  // the presentation banners for a rematch between the same two people.
   requestRematch(ws: PlayerSocket) {
     if (!this.players.includes(ws)) return;
     this.readyForRematch.add(ws);
@@ -136,6 +144,9 @@ export class Room {
     }
   }
 
+  // Fires if the second player still hasn't reacted GRACE_PERIOD_MS after
+  // the first one did. Assigns them a reaction time worse than the
+  // responder's (never a draw from a timeout) and resolves anyway.
   private resolveAfterTimeout() {
     this.graceTimer = null;
     if (this.actions.size === this.players.length) return; // already resolved, safety net
