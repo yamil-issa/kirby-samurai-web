@@ -1,0 +1,7 @@
+# Replace with your real domain. Caddy handles the HTTPS certificate
+# automatically (Let's Encrypt) — nothing else to configure, as long as:
+#   1. The domain's DNS A record points to this server's IP
+#   2. Ports 80 and 443 are open (see the firewall step in DEPLOY.md)
+your-domain.com {
+    reverse_proxy localhost 3001
+}

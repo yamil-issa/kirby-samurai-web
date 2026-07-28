@@ -1,0 +1,19 @@
+[Unit]
+Description=Samurai Kirby Discord Activity server
+After=network.target
+
+[Service]
+Type=simple
+User=samurai-kirby
+WorkingDirectory=/opt/samurai-kirby/server
+# Adjust this path if `which bun` gives something different once installed
+# for the samurai-kirby user.
+ExecStart=/home/samurai-kirby/.bun/bin/bun run src/discord-serve.ts
+Restart=on-failure
+RestartSec=5
+# server/.env already holds DISCORD_CLIENT_ID / DISCORD_CLIENT_SECRET /
+# PUBLIC_DISCORD_CLIENT_ID / PORT — Bun loads it automatically from the
+# working directory above, no need to repeat it here.
+
+[Install]
+WantedBy=multi-user.target
