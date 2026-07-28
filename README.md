@@ -87,12 +87,6 @@ This gives you a URL like `https://xxxx-yyyy.trycloudflare.com`. Note it down (i
 
 From a Discord voice channel (a test server), launch your Activity. The SDK handles auth automatically (see `client/src/discord.ts`), and the game detects it's running inside Discord via the `frame_id` URL parameter.
 
-### Known limitations at this stage
-
-- `/.proxy/` is no longer required since Discord's July 2025 update (plain relative paths are accepted), so no extra network patching is needed for that.
-- Not tested with a real Client ID/Secret or a real cloudflared tunnel (done in an environment without access to discord.com): the server-side logic (served page, assets, WebSocket upgrade) is verified end-to-end, but the actual OAuth exchange with Discord still needs to be validated on your end.
-- CSP: if the browser blocks a request once inside Discord, it'll show up in the console with an explicit message; we'll adjust case by case.
-
 ## Still missing
 
 - Real multi-room matchmaking / queue (currently: a single global room, MVP)
