@@ -1,6 +1,12 @@
 # Samurai Kirby
 
-Online reaction duel (in the style of the "Samurai Kirby" minigame from Smash Bros), meant to eventually run as a Discord Activity. This stage focuses purely on getting it running locally, without the Discord SDK.
+Online reaction duel (in the style of the "Samurai Kirby" minigame from Kirby Super Star), meant to eventually run as a Discord Activity. This stage focuses purely on getting it running locally, without the Discord SDK.
+
+## How to play
+The game is live at `kirby-samurai.one`
+
+- In Discord: launch it as an Activity from a voice channel (you'll need to be added as an App Tester first — the app isn't verified yet, see the checklist below).
+- In a browser: just open the link above. Share the exact URL it gives you (it includes a room code) with whoever you want to play against — opening that same link is what matches the two of you together.
 
 ## Architecture
 
@@ -23,7 +29,7 @@ samurai-kirby/
 
 ### Architecture choices vs. the original plan
 
-- **Backend**: Bun's native WebSocket instead of uWebSockets.js for the MVP. The binary protocol is identical either way; if we ever need uWebSockets.js's extra performance (a lot more concurrent rooms), we can swap the server without touching the protocol or the client.
+- **Backend**: Bun's native WebSocket instead of uWebSockets.js. The binary protocol is identical either way; if we ever need uWebSockets.js's extra performance (a lot more concurrent rooms), we can swap the server without touching the protocol or the client.
 - **Anti-cheat**: the server never trusts the timestamp sent by the client. Reaction time is calculated purely from the server's own receive time (`performance.now()` at the moment of the `message` event), minus the time the signal was sent. An action received before the signal was sent = instant foul, the round restarts.
 - **Protocol**: 1 type byte + fixed payload (float64/float32), no JSON, to stay consistent with the "every millisecond counts" logic.
 - **Frontend**: no external bundler (no Vite). We use Bun's built-in HTML server (`bun --hot index.html`), which transpiles TS on the fly. Separate HTML/CSS/JS files as preferred, no single-file bundle.

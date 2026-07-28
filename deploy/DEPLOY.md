@@ -1,8 +1,5 @@
 # Deploying to a VPS (Ubuntu 24.04)
 
-Provider-agnostic once the VPS exists — same steps for Hetzner, Netcup, or Oracle Cloud "Always Free". Using Oracle? See `ORACLE_SETUP.md` first for creating the instance (and a firewall gotcha specific to Oracle); come back here once you have a public IP and SSH access.
-
-Once you have: a domain pointing to the VPS's IP (A record), and the VPS itself (Ubuntu 24.04), run through this in order.
 
 ## 1. First connection & basic hardening
 
