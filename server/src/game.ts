@@ -13,9 +13,10 @@ import {
 export type PlayerData = { playerId: string; room?: Room };
 export type PlayerSocket = ServerWebSocket<PlayerData>;
 
-const MIN_DELAY_MS = 5000;
-const MAX_DELAY_MS = 68000; // matches samurai-kirby.wav duration (1m08s)
+const MIN_DELAY_MS = 4000;
+const MAX_DELAY_MS = 29000;
 const PRESENTATION_DELAY_MS = 1600; // how long the character banners stay up
+const GRACE_PERIOD_MS = 2000; // once one player reacts, how long the other gets before auto-losing
 const DEFAULT_NAMES: [string, string] = ["Joueur 1", "Joueur 2"];
 
 export class Room {
@@ -23,7 +24,11 @@ export class Room {
   private signalSentAt: number | null = null;
   private actions: Map<PlayerSocket, number> = new Map();
   private roundTimer: ReturnType<typeof setTimeout> | null = null;
+  private graceTimer: ReturnType<typeof setTimeout> | null = null;
   private names: [string, string] = [...DEFAULT_NAMES];
+  private readyForRematch: Set<PlayerSocket> = new Set();
+
+  constructor(private onAvailable?: (room: Room) => void) {}
 
   isFull() {
     return this.players.length >= 2;
@@ -37,8 +42,25 @@ export class Room {
   }
 
   removePlayer(ws: PlayerSocket) {
+    const wasFull = this.isFull();
     this.players = this.players.filter((p) => p !== ws);
+    this.readyForRematch.delete(ws);
     if (this.roundTimer) clearTimeout(this.roundTimer);
+    if (this.graceTimer) clearTimeout(this.graceTimer);
+
+    if (wasFull && this.players.length === 1) {
+      this.players[0].send(encodeSimple(MsgType.S2C_OPPONENT_LEFT));
+      this.onAvailable?.(this);
+    }
+  }
+
+  requestRematch(ws: PlayerSocket) {
+    if (!this.players.includes(ws)) return;
+    this.readyForRematch.add(ws);
+    if (this.isFull() && this.players.every((p) => this.readyForRematch.has(p))) {
+      this.readyForRematch.clear();
+      this.startRound();
+    }
   }
 
   setName(ws: PlayerSocket, data: Uint8Array) {
@@ -65,6 +87,10 @@ export class Room {
   private startRound() {
     this.actions.clear();
     this.signalSentAt = null;
+    if (this.graceTimer) {
+      clearTimeout(this.graceTimer);
+      this.graceTimer = null;
+    }
 
     for (const p of this.players) {
       p.send(encodeSimple(MsgType.S2C_ROUND_WAIT));
@@ -98,8 +124,29 @@ export class Room {
     }
 
     if (this.actions.size === this.players.length) {
+      if (this.graceTimer) {
+        clearTimeout(this.graceTimer);
+        this.graceTimer = null;
+      }
       this.resolveRound();
+    } else if (this.actions.size === 1) {
+      // One player reacted — give the other GRACE_PERIOD_MS before we just
+      // call it: someone who never reacts shouldn't leave the round stuck.
+      this.graceTimer = setTimeout(() => this.resolveAfterTimeout(), GRACE_PERIOD_MS);
     }
+  }
+
+  private resolveAfterTimeout() {
+    this.graceTimer = null;
+    if (this.actions.size === this.players.length) return; // already resolved, safety net
+
+    const respondedTime = [...this.actions.values()][0];
+    for (const p of this.players) {
+      if (!this.actions.has(p)) {
+        this.actions.set(p, respondedTime + GRACE_PERIOD_MS);
+      }
+    }
+    this.resolveRound();
   }
 
   private resolveRound() {

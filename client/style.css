@@ -21,3 +21,35 @@ canvas {
   font-size: 1.1rem;
   min-height: 1.5em;
 }
+
+#postGameActions {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+}
+
+#postGameActions button {
+  padding: 10px 24px;
+  font-size: 1rem;
+  font-weight: bold;
+  font-family: inherit;
+  border: 2px solid #A8BFCC;
+  border-radius: 4px;
+  background: #111;
+  color: #eee;
+  cursor: pointer;
+}
+
+#postGameActions button:hover {
+  background: #A8BFCC;
+  color: #111;
+}
+
+#quitBtn {
+  border-color: #7a1f1f;
+}
+
+#quitBtn:hover {
+  background: #7a1f1f;
+  color: #eee;
+}

@@ -1,3 +1,5 @@
+// Single-process entry point for running inside Discord.
+
 import { Room, type PlayerData, type PlayerSocket } from "./game";
 import { MsgType, readType } from "./protocol";
 
@@ -16,7 +18,9 @@ if (!CLIENT_ID || !CLIENT_SECRET) {
 let waitingRoom: Room | null = null;
 function getRoomForNewPlayer(): Room {
   if (!waitingRoom || waitingRoom.isFull()) {
-    waitingRoom = new Room();
+    waitingRoom = new Room((room) => {
+      waitingRoom = room; // room dropped to 1 player — make it matchable again
+    });
   }
   return waitingRoom;
 }
@@ -91,6 +95,8 @@ Bun.serve<PlayerData>({
         ws.data.room?.handleAction(ws, message as Uint8Array);
       } else if (type === MsgType.C2S_SET_NAME) {
         ws.data.room?.setName(ws, message as Uint8Array);
+      } else if (type === MsgType.C2S_READY_REMATCH) {
+        ws.data.room?.requestRematch(ws);
       }
     },
     close(ws: PlayerSocket) {

@@ -1,4 +1,5 @@
 // Mirrors server/src/protocol.ts.
+
 export const MsgType = {
   C2S_JOIN: 0x01,
   S2C_MATCHED: 0x02,
@@ -9,12 +10,20 @@ export const MsgType = {
   S2C_FOUL: 0x07,
   C2S_SET_NAME: 0x08,
   S2C_NAMES: 0x09,
+  C2S_READY_REMATCH: 0x0a,
+  S2C_OPPONENT_LEFT: 0x0b,
 } as const;
-
+ 
+export function encodeSimple(type: number): ArrayBuffer {
+  const buf = new ArrayBuffer(1);
+  new DataView(buf).setUint8(0, type);
+  return buf;
+}
+ 
 export function readType(data: ArrayBuffer): number {
   return new DataView(data).getUint8(0);
 }
-
+ 
 export function encodeAction(clientTimestamp: number): ArrayBuffer {
   const buf = new ArrayBuffer(9);
   const view = new DataView(buf);
@@ -22,15 +31,15 @@ export function encodeAction(clientTimestamp: number): ArrayBuffer {
   view.setFloat64(1, clientTimestamp);
   return buf;
 }
-
+ 
 export function decodeSignal(data: ArrayBuffer): number {
   return new DataView(data).getFloat64(1);
 }
-
+ 
 export function decodeMatched(data: ArrayBuffer): 0 | 1 {
   return new DataView(data).getUint8(1) as 0 | 1;
 }
-
+ 
 export function decodeResult(data: ArrayBuffer) {
   const view = new DataView(data);
   return {
@@ -39,7 +48,7 @@ export function decodeResult(data: ArrayBuffer) {
     opponentReactionMs: view.getFloat32(6),
   };
 }
-
+ 
 export function encodeSetName(name: string): ArrayBuffer {
   const utf8 = new TextEncoder().encode(name.slice(0, 64));
   const buf = new ArrayBuffer(2 + utf8.length);
@@ -49,7 +58,7 @@ export function encodeSetName(name: string): ArrayBuffer {
   new Uint8Array(buf, 2).set(utf8);
   return buf;
 }
-
+ 
 export function decodeNames(data: ArrayBuffer): [string, string] {
   const bytes = new Uint8Array(data);
   let offset = 1;

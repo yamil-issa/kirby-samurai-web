@@ -2,20 +2,26 @@ import { loadChromaKeyedImage } from "./imageUtils";
 
 export type SceneState = "connecting" | "presentation" | "wait" | "signal" | "acted" | "foul" | "result";
 
+// Who won, from an objective point of view (character1 is always drawn on
+// the left, character2 on the right, regardless of which client is viewing).
 export type DuelOutcome = "character1" | "character2" | "draw" | null;
 
+// Translucent tint drawn over the background per state — null means no tint.
 const TINT: Record<SceneState, string | null> = {
   connecting: null,
   presentation: null,
   wait: null,
-  signal: null,
+  signal: null, // the shoot icon carries the impact now, no more red flash
   acted: null,
   foul: "rgba(122, 31, 31, 0.55)",
   result: null,
 };
 
 const SHOOT_ICON_SCALE = 4;
-const SHOOT_ICON_Y_FRAC = 0.55;
+const SHOOT_ICON_Y_FRAC = 0.55; // centered roughly at the characters' torso height
+
+// Where the two characters stand, as a fraction of canvas size, and how big
+// (pixel-art sprites are tiny — scale them up while keeping crisp edges).
 const CHAR_SCALE = 3;
 const CHAR_LEFT_X_FRAC = 0.28;
 const CHAR_RIGHT_X_FRAC = 0.68;
@@ -65,7 +71,7 @@ export class Renderer {
 
   constructor(private canvas: HTMLCanvasElement, assets: RendererAssets) {
     this.ctx = canvas.getContext("2d")!;
-    this.ctx.imageSmoothingEnabled = false;
+    this.ctx.imageSmoothingEnabled = false; // keep pixel art crisp when scaled up
 
     const loads: Promise<void>[] = [
       loadImage(assets.background).then((img) => {
@@ -125,6 +131,9 @@ export class Renderer {
     ctx.drawImage(img, 0, dy, canvas.width, drawH);
   }
 
+  // Draws a character standing on the ground line, anchored by its feet
+  // (bottom-center) at the given horizontal fraction of the canvas, with
+  // its display name in a small label right above its head.
   private drawCharacter(sprite: Sprite, xFrac: number, name: string) {
     const { ctx, canvas } = this;
     const drawW = sprite.width * CHAR_SCALE;
@@ -146,6 +155,8 @@ export class Renderer {
     }
   }
 
+  // Updates the names shown above each character (character1 = left,
+  // character2 = right). Call this whenever an S2C_NAMES message arrives.
   setNames(left: string, right: string) {
     this.leftName = left;
     this.rightName = right;
@@ -162,6 +173,8 @@ export class Renderer {
     return (isThisSideWinner ? win : loose) ?? idle;
   }
 
+  // Draws the shoot cue icon centered on screen, replacing the old red
+  // flash + "SHOOT!" text.
   private drawShootIcon() {
     if (!this.shootIcon) return;
     const { ctx, canvas, shootIcon } = this;
@@ -182,6 +195,8 @@ export class Renderer {
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
+    // Characters stick around from the presentation screen all the way
+    // through the duel — only hidden before a match is found.
     if (state !== "connecting") {
       const leftSprite = this.pickSprite("left", state, outcome);
       const rightSprite = this.pickSprite("right", state, outcome);
@@ -206,12 +221,39 @@ export class Renderer {
     }
 
     ctx.fillStyle = "#fff";
-    ctx.font = "bold 36px system-ui, sans-serif";
+    ctx.font = "bold 28px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.shadowColor = "rgba(0,0,0,0.8)";
     ctx.shadowBlur = 6;
-    ctx.fillText(message, canvas.width / 2, canvas.height / 2);
+
+    const maxTextWidth = canvas.width - 60;
+    const lines = wrapText(ctx, message, maxTextWidth);
+    const lineHeight = 34;
+    const messageY = canvas.height * 0.32;
+    const startY = messageY - ((lines.length - 1) * lineHeight) / 2;
+    lines.forEach((line, i) => {
+      ctx.fillText(line, canvas.width / 2, startY + i * lineHeight);
+    });
     ctx.shadowBlur = 0;
   }
+}
+
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  if (!text) return [];
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    if (ctx.measureText(testLine).width > maxWidth && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+  return lines;
 }

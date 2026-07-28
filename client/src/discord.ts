@@ -44,9 +44,10 @@ export function isRunningInsideDiscord(): boolean {
 }
 
 export function getWebSocketUrl(): string {
-  if (isRunningInsideDiscord()) {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${protocol}//${window.location.host}/ws`;
+  const isLocalDev = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  if (isLocalDev) {
+    return "ws://localhost:3001";
   }
-  return "ws://localhost:3001";
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocol}//${window.location.host}/ws`;
 }

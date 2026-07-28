@@ -7,11 +7,14 @@ let waitingRoom: Room | null = null;
 
 function getRoomForNewPlayer(): Room {
   if (!waitingRoom || waitingRoom.isFull()) {
-    waitingRoom = new Room();
+    waitingRoom = new Room((room) => {
+      waitingRoom = room; // room dropped to 1 player — make it matchable again
+    });
   }
   return waitingRoom;
 }
 
+// Server side half of the Discord Activity OAuth2 flow
 async function handleTokenExchange(req: Request): Promise<Response> {
   const { code } = (await req.json()) as { code?: string };
   if (!code) {
@@ -78,6 +81,8 @@ Bun.serve<PlayerData>({
         ws.data.room?.handleAction(ws, message);
       } else if (type === MsgType.C2S_SET_NAME) {
         ws.data.room?.setName(ws, message);
+      } else if (type === MsgType.C2S_READY_REMATCH) {
+        ws.data.room?.requestRematch(ws);
       }
     },
     close(ws: PlayerSocket) {

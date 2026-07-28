@@ -10,14 +10,16 @@ export const MsgType = {
   S2C_FOUL: 0x07, // pressed before the signal
   C2S_SET_NAME: 0x08, // client -> server: my display name (Discord username, or fallback)
   S2C_NAMES: 0x09, // server -> both clients: current character1/character2 names
+  C2S_READY_REMATCH: 0x0a, // client -> server: clicked "Rejouer"
+  S2C_OPPONENT_LEFT: 0x0b, // server -> remaining client: the other player disconnected
 } as const;
-
+ 
 export type ResultPayload = {
   winner: 0 | 1 | 2; // 0 = this player, 1 = opponent, 2 = draw
   yourReactionMs: number;
   opponentReactionMs: number;
 };
-
+ 
 export function encodeSimple(type: number): ArrayBuffer {
   const buf = new ArrayBuffer(1);
   new DataView(buf).setUint8(0, type);
@@ -31,7 +33,7 @@ export function encodeMatched(slot: 0 | 1): ArrayBuffer {
   view.setUint8(1, slot);
   return buf;
 }
-
+ 
 export function encodeSignal(serverTimestamp: number): ArrayBuffer {
   const buf = new ArrayBuffer(9);
   const view = new DataView(buf);
@@ -39,7 +41,7 @@ export function encodeSignal(serverTimestamp: number): ArrayBuffer {
   view.setFloat64(1, serverTimestamp);
   return buf;
 }
-
+ 
 export function encodeResult(payload: ResultPayload): ArrayBuffer {
   const buf = new ArrayBuffer(1 + 1 + 4 + 4);
   const view = new DataView(buf);
@@ -64,7 +66,7 @@ export function encodeNames(name1: string, name2: string): ArrayBuffer {
   new Uint8Array(buf, offset, u2.length).set(u2);
   return buf;
 }
-
+ 
 export function decodeSetName(data: Uint8Array): string {
   const len = data[1];
   return new TextDecoder().decode(data.slice(2, 2 + len));
