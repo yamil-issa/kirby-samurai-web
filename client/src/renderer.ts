@@ -26,6 +26,8 @@ const CHAR_SCALE = 3;
 const CHAR_LEFT_X_FRAC = 0.28;
 const CHAR_RIGHT_X_FRAC = 0.68;
 const CHAR_GROUND_Y_FRAC = 0.8;
+const RESULT_CENTER_STEP = 0.06; // both characters step slightly toward center on result
+const RESULT_PAST_OPPONENT_GAP = 0.2; // how far past the loser's spot the winner ends up
 
 type Sprite = HTMLCanvasElement | HTMLImageElement;
 
@@ -173,6 +175,34 @@ export class Renderer {
     return (isThisSideWinner ? win : loose) ?? idle;
   }
 
+  private isWinnerSide(side: "left" | "right", state: SceneState, outcome: DuelOutcome): boolean {
+    if (state !== "result" || !outcome || outcome === "draw") return false;
+    return (side === "left" && outcome === "character1") || (side === "right" && outcome === "character2");
+  }
+
+  // On any result, both characters step slightly toward the center (not
+  // all the way). On a win, the winner additionally ends up past the
+  // loser's (now-centered) spot — having dashed through them.
+  private characterXFrac(side: "left" | "right", state: SceneState, outcome: DuelOutcome): number {
+    const base = side === "left" ? CHAR_LEFT_X_FRAC : CHAR_RIGHT_X_FRAC;
+    if (state !== "result" || !outcome) return base;
+
+    const stepIn = side === "left" ? base + RESULT_CENTER_STEP : base - RESULT_CENTER_STEP;
+    if (!this.isWinnerSide(side, state, outcome)) return stepIn; // loser, or both on a draw
+
+    const opponentBase = side === "left" ? CHAR_RIGHT_X_FRAC : CHAR_LEFT_X_FRAC;
+    const opponentStepIn = side === "left" ? opponentBase - RESULT_CENTER_STEP : opponentBase + RESULT_CENTER_STEP;
+    return side === "left"
+      ? opponentStepIn + RESULT_PAST_OPPONENT_GAP
+      : opponentStepIn - RESULT_PAST_OPPONENT_GAP;
+  }
+
+  flashWhite() {
+    const { ctx, canvas } = this;
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
   // Draws the shoot cue icon centered on screen, replacing the old red
   // flash + "SHOOT!" text.
   private drawShootIcon() {
@@ -200,8 +230,28 @@ export class Renderer {
     if (state !== "connecting") {
       const leftSprite = this.pickSprite("left", state, outcome);
       const rightSprite = this.pickSprite("right", state, outcome);
-      if (leftSprite) this.drawCharacter(leftSprite, CHAR_LEFT_X_FRAC, this.leftName);
-      if (rightSprite) this.drawCharacter(rightSprite, CHAR_RIGHT_X_FRAC, this.rightName);
+      const leftXFrac = this.characterXFrac("left", state, outcome);
+      const rightXFrac = this.characterXFrac("right", state, outcome);
+
+      const drawLeft = () => {
+        if (leftSprite) this.drawCharacter(leftSprite, leftXFrac, this.leftName);
+      };
+      const drawRight = () => {
+        if (rightSprite) this.drawCharacter(rightSprite, rightXFrac, this.rightName);
+      };
+
+      // The winner is drawn first so the loser's sprite overlaps in front
+      // of them.
+      if (this.isWinnerSide("left", state, outcome)) {
+        drawLeft();
+        drawRight();
+      } else if (this.isWinnerSide("right", state, outcome)) {
+        drawRight();
+        drawLeft();
+      } else {
+        drawLeft();
+        drawRight();
+      }
     }
 
     const tint = TINT[state];

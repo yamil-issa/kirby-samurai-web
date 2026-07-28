@@ -148,8 +148,11 @@ function connectToServer() {
           outcome = iWon === iAmCharacter1 ? "character1" : "character2";
         }
 
-        render("result", label, outcome);
-        postGameActions.hidden = false;
+        renderer.flashWhite();
+        setTimeout(() => {
+          render("result", label, outcome);
+          postGameActions.hidden = false;
+        }, 130);
         break;
       }
     }
